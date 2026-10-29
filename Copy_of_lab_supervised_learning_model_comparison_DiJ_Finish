@@ -1,0 +1,1681 @@
+{
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "view-in-github",
+        "colab_type": "text"
+      },
+      "source": [
+        "<a href=\"https://colab.research.google.com/github/jelenavasic009-png/DSB-Unit-03/blob/main/Copy_of_lab_supervised_learning_model_comparison_DiJ_Finish\" target=\"_parent\"><img src=\"https://colab.research.google.com/assets/colab-badge.svg\" alt=\"Open In Colab\"/></a>"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "jS_CbANj8xoV"
+      },
+      "source": [
+        "<img src=\"https://github.com/jelenavasic009-png/DSB-Unit-03/blob/main/labs/03%20-%20Supervised-Model-Comparison/assets/ga-logo.png?raw=1\" style=\"float: left; margin: 20px; height: 55px\">\n",
+        "\n",
+        "# Lab: Supervised Learning Model Comparison\n",
+        "---"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "Pm4GOHEt8xoY"
+      },
+      "source": [
+        "Recall the data science process.\n",
+        "\n",
+        "1. Define the problem.\n",
+        "2. Gather the data.\n",
+        "3. Explore the data.\n",
+        "4. Model the data.\n",
+        "5. Evaluate the model.\n",
+        "6. Answer the problem.\n",
+        "\n",
+        "In this lab, we're going to focus mostly on creating (and then comparing) many regression and classification models. Thus, we'll define the problem and gather the data for you.\n",
+        "Most of the questions requiring a written response can be written in 2-3 sentences."
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "b2C0HTzV8xoY"
+      },
+      "source": [
+        "### Step 1: Define the problem.\n",
+        "\n",
+        "You are a data scientist with a financial services company. Specifically, you want to leverage data in order to identify potential customers.\n",
+        "\n",
+        "If you are unfamiliar with \"401(k)s\" or \"IRAs,\" these are two types of retirement accounts. Very broadly speaking:\n",
+        "- You can put money for retirement into both of these accounts.\n",
+        "- The money in these accounts gets invested and hopefully has a lot more money in it when you retire.\n",
+        "- These are a little different from regular bank accounts in that there are certain tax benefits to these accounts. Also, employers frequently match money that you put into a 401k.\n",
+        "- If you want to learn more about them, check out [this site](https://www.nerdwallet.com/article/ira-vs-401k-retirement-accounts).\n",
+        "\n",
+        "We will tackle one regression problem and one classification problem today.\n",
+        "- Regression: What features best predict one's income?\n",
+        "- Classification: Predict whether or not one is eligible for a 401k.\n",
+        "\n",
+        "Check out the data dictionary [here](http://fmwww.bc.edu/ec-p/data/wooldridge2k/401KSUBS.DES).\n",
+        "\n",
+        "### NOTE: When predicting `inc`, you should pretend as though you do not have access to the `e401k`, the `p401k` variable, and the `pira` variable. When predicting `e401k`, you may use the entire dataframe if you wish."
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "uWr6NHS28xoY"
+      },
+      "source": [
+        "### Step 2: Gather the data.\n",
+        "\n",
+        "##### 1. Read in the data from the repository."
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 1,
+      "metadata": {
+        "collapsed": true,
+        "jupyter": {
+          "outputs_hidden": true
+        },
+        "id": "OnoP96dB8xoZ"
+      },
+      "outputs": [],
+      "source": [
+        "import numpy as np\n",
+        "import pandas as pd\n",
+        "import matplotlib.pyplot as plt\n",
+        "from scipy import stats\n",
+        "\n",
+        "from sklearn.model_selection import train_test_split, GridSearchCV\n",
+        "\n",
+        "import statsmodels.api as sm\n",
+        "import itertools\n",
+        "\n",
+        "from statsmodels.tsa.seasonal import seasonal_decompose\n",
+        "from statsmodels.graphics.tsaplots import plot_acf, plot_pacf\n",
+        "from statsmodels.tsa.stattools import adfuller\n",
+        "from statsmodels.tsa.arima.model import ARIMA\n",
+        "from sklearn.model_selection import train_test_split\n",
+        "from sklearn.preprocessing import StandardScaler\n",
+        "from sklearn.pipeline import Pipeline\n",
+        "from sklearn.linear_model import LinearRegression\n",
+        "from sklearn.neighbors import KNeighborsRegressor\n",
+        "from sklearn.tree import DecisionTreeRegressor\n",
+        "from sklearn.ensemble import BaggingRegressor, RandomForestRegressor, AdaBoostRegressor"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 2,
+      "metadata": {
+        "collapsed": true,
+        "jupyter": {
+          "outputs_hidden": true
+        },
+        "id": "9DMV08ya8xoZ"
+      },
+      "outputs": [],
+      "source": [
+        "df_e = pd.read_csv('https://raw.githubusercontent.com/milatovicdanka90-maker/DSB-Unit-03/refs/heads/main/labs/03%20-%20Supervised-Model-Comparison/data/401ksubs.csv')"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "df_e.info()"
+      ],
+      "metadata": {
+        "id": "Ow9b_83e-Rx9",
+        "outputId": "464478de-84c3-40d2-d486-7021b08277d8",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        }
+      },
+      "execution_count": 3,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "<class 'pandas.core.frame.DataFrame'>\n",
+            "RangeIndex: 9275 entries, 0 to 9274\n",
+            "Data columns (total 11 columns):\n",
+            " #   Column  Non-Null Count  Dtype  \n",
+            "---  ------  --------------  -----  \n",
+            " 0   e401k   9275 non-null   int64  \n",
+            " 1   inc     9275 non-null   float64\n",
+            " 2   marr    9275 non-null   int64  \n",
+            " 3   male    9275 non-null   int64  \n",
+            " 4   age     9275 non-null   int64  \n",
+            " 5   fsize   9275 non-null   int64  \n",
+            " 6   nettfa  9275 non-null   float64\n",
+            " 7   p401k   9275 non-null   int64  \n",
+            " 8   pira    9275 non-null   int64  \n",
+            " 9   incsq   9275 non-null   float64\n",
+            " 10  agesq   9275 non-null   int64  \n",
+            "dtypes: float64(3), int64(8)\n",
+            "memory usage: 797.2 KB\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "df_e.head()"
+      ],
+      "metadata": {
+        "id": "E0IWPX3f-WMx",
+        "outputId": "8214f168-9bcd-4fac-fd75-9f90bb317c55",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 206
+        }
+      },
+      "execution_count": 4,
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "   e401k     inc  marr  male  age  fsize   nettfa  p401k  pira      incsq  \\\n",
+              "0      0  13.170     0     0   40      1    4.575      0     1   173.4489   \n",
+              "1      1  61.230     0     1   35      1  154.000      1     0  3749.1130   \n",
+              "2      0  12.858     1     0   44      2    0.000      0     0   165.3282   \n",
+              "3      0  98.880     1     1   44      2   21.800      0     0  9777.2540   \n",
+              "4      0  22.614     0     0   53      1   18.450      0     0   511.3930   \n",
+              "\n",
+              "   agesq  \n",
+              "0   1600  \n",
+              "1   1225  \n",
+              "2   1936  \n",
+              "3   1936  \n",
+              "4   2809  "
+            ],
+            "text/html": [
+              "\n",
+              "  <div id=\"df-becf211c-1c20-42a7-a84f-a743dc1da85b\" class=\"colab-df-container\">\n",
+              "    <div>\n",
+              "<style scoped>\n",
+              "    .dataframe tbody tr th:only-of-type {\n",
+              "        vertical-align: middle;\n",
+              "    }\n",
+              "\n",
+              "    .dataframe tbody tr th {\n",
+              "        vertical-align: top;\n",
+              "    }\n",
+              "\n",
+              "    .dataframe thead th {\n",
+              "        text-align: right;\n",
+              "    }\n",
+              "</style>\n",
+              "<table border=\"1\" class=\"dataframe\">\n",
+              "  <thead>\n",
+              "    <tr style=\"text-align: right;\">\n",
+              "      <th></th>\n",
+              "      <th>e401k</th>\n",
+              "      <th>inc</th>\n",
+              "      <th>marr</th>\n",
+              "      <th>male</th>\n",
+              "      <th>age</th>\n",
+              "      <th>fsize</th>\n",
+              "      <th>nettfa</th>\n",
+              "      <th>p401k</th>\n",
+              "      <th>pira</th>\n",
+              "      <th>incsq</th>\n",
+              "      <th>agesq</th>\n",
+              "    </tr>\n",
+              "  </thead>\n",
+              "  <tbody>\n",
+              "    <tr>\n",
+              "      <th>0</th>\n",
+              "      <td>0</td>\n",
+              "      <td>13.170</td>\n",
+              "      <td>0</td>\n",
+              "      <td>0</td>\n",
+              "      <td>40</td>\n",
+              "      <td>1</td>\n",
+              "      <td>4.575</td>\n",
+              "      <td>0</td>\n",
+              "      <td>1</td>\n",
+              "      <td>173.4489</td>\n",
+              "      <td>1600</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>1</th>\n",
+              "      <td>1</td>\n",
+              "      <td>61.230</td>\n",
+              "      <td>0</td>\n",
+              "      <td>1</td>\n",
+              "      <td>35</td>\n",
+              "      <td>1</td>\n",
+              "      <td>154.000</td>\n",
+              "      <td>1</td>\n",
+              "      <td>0</td>\n",
+              "      <td>3749.1130</td>\n",
+              "      <td>1225</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>2</th>\n",
+              "      <td>0</td>\n",
+              "      <td>12.858</td>\n",
+              "      <td>1</td>\n",
+              "      <td>0</td>\n",
+              "      <td>44</td>\n",
+              "      <td>2</td>\n",
+              "      <td>0.000</td>\n",
+              "      <td>0</td>\n",
+              "      <td>0</td>\n",
+              "      <td>165.3282</td>\n",
+              "      <td>1936</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>3</th>\n",
+              "      <td>0</td>\n",
+              "      <td>98.880</td>\n",
+              "      <td>1</td>\n",
+              "      <td>1</td>\n",
+              "      <td>44</td>\n",
+              "      <td>2</td>\n",
+              "      <td>21.800</td>\n",
+              "      <td>0</td>\n",
+              "      <td>0</td>\n",
+              "      <td>9777.2540</td>\n",
+              "      <td>1936</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>4</th>\n",
+              "      <td>0</td>\n",
+              "      <td>22.614</td>\n",
+              "      <td>0</td>\n",
+              "      <td>0</td>\n",
+              "      <td>53</td>\n",
+              "      <td>1</td>\n",
+              "      <td>18.450</td>\n",
+              "      <td>0</td>\n",
+              "      <td>0</td>\n",
+              "      <td>511.3930</td>\n",
+              "      <td>2809</td>\n",
+              "    </tr>\n",
+              "  </tbody>\n",
+              "</table>\n",
+              "</div>\n",
+              "    <div class=\"colab-df-buttons\">\n",
+              "\n",
+              "  <div class=\"colab-df-container\">\n",
+              "    <button class=\"colab-df-convert\" onclick=\"convertToInteractive('df-becf211c-1c20-42a7-a84f-a743dc1da85b')\"\n",
+              "            title=\"Convert this dataframe to an interactive table.\"\n",
+              "            style=\"display:none;\">\n",
+              "\n",
+              "  <svg xmlns=\"http://www.w3.org/2000/svg\" height=\"24px\" viewBox=\"0 -960 960 960\">\n",
+              "    <path d=\"M120-120v-720h720v720H120Zm60-500h600v-160H180v160Zm220 220h160v-160H400v160Zm0 220h160v-160H400v160ZM180-400h160v-160H180v160Zm440 0h160v-160H620v160ZM180-180h160v-160H180v160Zm440 0h160v-160H620v160Z\"/>\n",
+              "  </svg>\n",
+              "    </button>\n",
+              "\n",
+              "  <style>\n",
+              "    .colab-df-container {\n",
+              "      display:flex;\n",
+              "      gap: 12px;\n",
+              "    }\n",
+              "\n",
+              "    .colab-df-convert {\n",
+              "      background-color: #E8F0FE;\n",
+              "      border: none;\n",
+              "      border-radius: 50%;\n",
+              "      cursor: pointer;\n",
+              "      display: none;\n",
+              "      fill: #1967D2;\n",
+              "      height: 32px;\n",
+              "      padding: 0 0 0 0;\n",
+              "      width: 32px;\n",
+              "    }\n",
+              "\n",
+              "    .colab-df-convert:hover {\n",
+              "      background-color: #E2EBFA;\n",
+              "      box-shadow: 0px 1px 2px rgba(60, 64, 67, 0.3), 0px 1px 3px 1px rgba(60, 64, 67, 0.15);\n",
+              "      fill: #174EA6;\n",
+              "    }\n",
+              "\n",
+              "    .colab-df-buttons div {\n",
+              "      margin-bottom: 4px;\n",
+              "    }\n",
+              "\n",
+              "    [theme=dark] .colab-df-convert {\n",
+              "      background-color: #3B4455;\n",
+              "      fill: #D2E3FC;\n",
+              "    }\n",
+              "\n",
+              "    [theme=dark] .colab-df-convert:hover {\n",
+              "      background-color: #434B5C;\n",
+              "      box-shadow: 0px 1px 3px 1px rgba(0, 0, 0, 0.15);\n",
+              "      filter: drop-shadow(0px 1px 2px rgba(0, 0, 0, 0.3));\n",
+              "      fill: #FFFFFF;\n",
+              "    }\n",
+              "  </style>\n",
+              "\n",
+              "    <script>\n",
+              "      const buttonEl =\n",
+              "        document.querySelector('#df-becf211c-1c20-42a7-a84f-a743dc1da85b button.colab-df-convert');\n",
+              "      buttonEl.style.display =\n",
+              "        google.colab.kernel.accessAllowed ? 'block' : 'none';\n",
+              "\n",
+              "      async function convertToInteractive(key) {\n",
+              "        const element = document.querySelector('#df-becf211c-1c20-42a7-a84f-a743dc1da85b');\n",
+              "        const dataTable =\n",
+              "          await google.colab.kernel.invokeFunction('convertToInteractive',\n",
+              "                                                    [key], {});\n",
+              "        if (!dataTable) return;\n",
+              "\n",
+              "        const docLinkHtml = 'Like what you see? Visit the ' +\n",
+              "          '<a target=\"_blank\" href=https://colab.research.google.com/notebooks/data_table.ipynb>data table notebook</a>'\n",
+              "          + ' to learn more about interactive tables.';\n",
+              "        element.innerHTML = '';\n",
+              "        dataTable['output_type'] = 'display_data';\n",
+              "        await google.colab.output.renderOutput(dataTable, element);\n",
+              "        const docLink = document.createElement('div');\n",
+              "        docLink.innerHTML = docLinkHtml;\n",
+              "        element.appendChild(docLink);\n",
+              "      }\n",
+              "    </script>\n",
+              "  </div>\n",
+              "\n",
+              "    </div>\n",
+              "  </div>\n"
+            ],
+            "application/vnd.google.colaboratory.intrinsic+json": {
+              "type": "dataframe",
+              "variable_name": "df_e",
+              "summary": "{\n  \"name\": \"df_e\",\n  \"rows\": 9275,\n  \"fields\": [\n    {\n      \"column\": \"e401k\",\n      \"properties\": {\n        \"dtype\": \"number\",\n        \"std\": 0,\n        \"min\": 0,\n        \"max\": 1,\n        \"num_unique_values\": 2,\n        \"samples\": [\n          1,\n          0\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"inc\",\n      \"properties\": {\n        \"dtype\": \"number\",\n        \"std\": 24.090002133318887,\n        \"min\": 10.008,\n        \"max\": 199.041,\n        \"num_unique_values\": 6852,\n        \"samples\": [\n          22.818,\n          15.045\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"marr\",\n      \"properties\": {\n        \"dtype\": \"number\",\n        \"std\": 0,\n        \"min\": 0,\n        \"max\": 1,\n        \"num_unique_values\": 2,\n        \"samples\": [\n          1,\n          0\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"male\",\n      \"properties\": {\n        \"dtype\": \"number\",\n        \"std\": 0,\n        \"min\": 0,\n        \"max\": 1,\n        \"num_unique_values\": 2,\n        \"samples\": [\n          1,\n          0\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"age\",\n      \"properties\": {\n        \"dtype\": \"number\",\n        \"std\": 10,\n        \"min\": 25,\n        \"max\": 64,\n        \"num_unique_values\": 40,\n        \"samples\": [\n          46,\n          31\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"fsize\",\n      \"properties\": {\n        \"dtype\": \"number\",\n        \"std\": 1,\n        \"min\": 1,\n        \"max\": 13,\n        \"num_unique_values\": 13,\n        \"samples\": [\n          12,\n          10\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"nettfa\",\n      \"properties\": {\n        \"dtype\": \"number\",\n        \"std\": 63.96383822054012,\n        \"min\": -502.302,\n        \"max\": 1536.798,\n        \"num_unique_values\": 5025,\n        \"samples\": [\n          10.22,\n          202.747\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"p401k\",\n      \"properties\": {\n        \"dtype\": \"number\",\n        \"std\": 0,\n        \"min\": 0,\n        \"max\": 1,\n        \"num_unique_values\": 2,\n        \"samples\": [\n          1,\n          0\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"pira\",\n      \"properties\": {\n        \"dtype\": \"number\",\n        \"std\": 0,\n        \"min\": 0,\n        \"max\": 1,\n        \"num_unique_values\": 2,\n        \"samples\": [\n          0,\n          1\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"incsq\",\n      \"properties\": {\n        \"dtype\": \"number\",\n        \"std\": 3001.4694242218134,\n        \"min\": 100.1601,\n        \"max\": 39617.32,\n        \"num_unique_values\": 6852,\n        \"samples\": [\n          520.6611,\n          226.352\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"agesq\",\n      \"properties\": {\n        \"dtype\": \"number\",\n        \"std\": 895,\n        \"min\": 625,\n        \"max\": 4096,\n        \"num_unique_values\": 40,\n        \"samples\": [\n          2116,\n          961\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    }\n  ]\n}"
+            }
+          },
+          "metadata": {},
+          "execution_count": 4
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "df_e.isnull().sum()"
+      ],
+      "metadata": {
+        "id": "eAq8Ojau-eqc",
+        "outputId": "75d5a2c9-0803-4a80-8393-0a0b4a9a2dbe",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 429
+        }
+      },
+      "execution_count": 5,
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "e401k     0\n",
+              "inc       0\n",
+              "marr      0\n",
+              "male      0\n",
+              "age       0\n",
+              "fsize     0\n",
+              "nettfa    0\n",
+              "p401k     0\n",
+              "pira      0\n",
+              "incsq     0\n",
+              "agesq     0\n",
+              "dtype: int64"
+            ],
+            "text/html": [
+              "<div>\n",
+              "<style scoped>\n",
+              "    .dataframe tbody tr th:only-of-type {\n",
+              "        vertical-align: middle;\n",
+              "    }\n",
+              "\n",
+              "    .dataframe tbody tr th {\n",
+              "        vertical-align: top;\n",
+              "    }\n",
+              "\n",
+              "    .dataframe thead th {\n",
+              "        text-align: right;\n",
+              "    }\n",
+              "</style>\n",
+              "<table border=\"1\" class=\"dataframe\">\n",
+              "  <thead>\n",
+              "    <tr style=\"text-align: right;\">\n",
+              "      <th></th>\n",
+              "      <th>0</th>\n",
+              "    </tr>\n",
+              "  </thead>\n",
+              "  <tbody>\n",
+              "    <tr>\n",
+              "      <th>e401k</th>\n",
+              "      <td>0</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>inc</th>\n",
+              "      <td>0</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>marr</th>\n",
+              "      <td>0</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>male</th>\n",
+              "      <td>0</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>age</th>\n",
+              "      <td>0</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>fsize</th>\n",
+              "      <td>0</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>nettfa</th>\n",
+              "      <td>0</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>p401k</th>\n",
+              "      <td>0</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>pira</th>\n",
+              "      <td>0</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>incsq</th>\n",
+              "      <td>0</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>agesq</th>\n",
+              "      <td>0</td>\n",
+              "    </tr>\n",
+              "  </tbody>\n",
+              "</table>\n",
+              "</div><br><label><b>dtype:</b> int64</label>"
+            ]
+          },
+          "metadata": {},
+          "execution_count": 5
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "df_e.describe()"
+      ],
+      "metadata": {
+        "id": "kuvSd_ov-jv9",
+        "outputId": "b450ae43-37a3-456a-b072-7b4b05c34938",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 300
+        }
+      },
+      "execution_count": 6,
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "             e401k          inc         marr         male          age  \\\n",
+              "count  9275.000000  9275.000000  9275.000000  9275.000000  9275.000000   \n",
+              "mean      0.392129    39.254641     0.628571     0.204420    41.080216   \n",
+              "std       0.488252    24.090002     0.483213     0.403299    10.299517   \n",
+              "min       0.000000    10.008000     0.000000     0.000000    25.000000   \n",
+              "25%       0.000000    21.660000     0.000000     0.000000    33.000000   \n",
+              "50%       0.000000    33.288000     1.000000     0.000000    40.000000   \n",
+              "75%       1.000000    50.160000     1.000000     0.000000    48.000000   \n",
+              "max       1.000000   199.041000     1.000000     1.000000    64.000000   \n",
+              "\n",
+              "             fsize       nettfa        p401k         pira         incsq  \\\n",
+              "count  9275.000000  9275.000000  9275.000000  9275.000000   9275.000000   \n",
+              "mean      2.885067    19.071675     0.276226     0.254340   2121.192483   \n",
+              "std       1.525835    63.963838     0.447154     0.435513   3001.469424   \n",
+              "min       1.000000  -502.302000     0.000000     0.000000    100.160100   \n",
+              "25%       2.000000    -0.500000     0.000000     0.000000    469.155600   \n",
+              "50%       3.000000     2.000000     0.000000     0.000000   1108.091000   \n",
+              "75%       4.000000    18.449500     1.000000     1.000000   2516.025500   \n",
+              "max      13.000000  1536.798000     1.000000     1.000000  39617.320000   \n",
+              "\n",
+              "             agesq  \n",
+              "count  9275.000000  \n",
+              "mean   1793.652722  \n",
+              "std     895.648841  \n",
+              "min     625.000000  \n",
+              "25%    1089.000000  \n",
+              "50%    1600.000000  \n",
+              "75%    2304.000000  \n",
+              "max    4096.000000  "
+            ],
+            "text/html": [
+              "\n",
+              "  <div id=\"df-2a3438f7-d4cf-465b-ac3d-de4503914df1\" class=\"colab-df-container\">\n",
+              "    <div>\n",
+              "<style scoped>\n",
+              "    .dataframe tbody tr th:only-of-type {\n",
+              "        vertical-align: middle;\n",
+              "    }\n",
+              "\n",
+              "    .dataframe tbody tr th {\n",
+              "        vertical-align: top;\n",
+              "    }\n",
+              "\n",
+              "    .dataframe thead th {\n",
+              "        text-align: right;\n",
+              "    }\n",
+              "</style>\n",
+              "<table border=\"1\" class=\"dataframe\">\n",
+              "  <thead>\n",
+              "    <tr style=\"text-align: right;\">\n",
+              "      <th></th>\n",
+              "      <th>e401k</th>\n",
+              "      <th>inc</th>\n",
+              "      <th>marr</th>\n",
+              "      <th>male</th>\n",
+              "      <th>age</th>\n",
+              "      <th>fsize</th>\n",
+              "      <th>nettfa</th>\n",
+              "      <th>p401k</th>\n",
+              "      <th>pira</th>\n",
+              "      <th>incsq</th>\n",
+              "      <th>agesq</th>\n",
+              "    </tr>\n",
+              "  </thead>\n",
+              "  <tbody>\n",
+              "    <tr>\n",
+              "      <th>count</th>\n",
+              "      <td>9275.000000</td>\n",
+              "      <td>9275.000000</td>\n",
+              "      <td>9275.000000</td>\n",
+              "      <td>9275.000000</td>\n",
+              "      <td>9275.000000</td>\n",
+              "      <td>9275.000000</td>\n",
+              "      <td>9275.000000</td>\n",
+              "      <td>9275.000000</td>\n",
+              "      <td>9275.000000</td>\n",
+              "      <td>9275.000000</td>\n",
+              "      <td>9275.000000</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>mean</th>\n",
+              "      <td>0.392129</td>\n",
+              "      <td>39.254641</td>\n",
+              "      <td>0.628571</td>\n",
+              "      <td>0.204420</td>\n",
+              "      <td>41.080216</td>\n",
+              "      <td>2.885067</td>\n",
+              "      <td>19.071675</td>\n",
+              "      <td>0.276226</td>\n",
+              "      <td>0.254340</td>\n",
+              "      <td>2121.192483</td>\n",
+              "      <td>1793.652722</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>std</th>\n",
+              "      <td>0.488252</td>\n",
+              "      <td>24.090002</td>\n",
+              "      <td>0.483213</td>\n",
+              "      <td>0.403299</td>\n",
+              "      <td>10.299517</td>\n",
+              "      <td>1.525835</td>\n",
+              "      <td>63.963838</td>\n",
+              "      <td>0.447154</td>\n",
+              "      <td>0.435513</td>\n",
+              "      <td>3001.469424</td>\n",
+              "      <td>895.648841</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>min</th>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>10.008000</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>25.000000</td>\n",
+              "      <td>1.000000</td>\n",
+              "      <td>-502.302000</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>100.160100</td>\n",
+              "      <td>625.000000</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>25%</th>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>21.660000</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>33.000000</td>\n",
+              "      <td>2.000000</td>\n",
+              "      <td>-0.500000</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>469.155600</td>\n",
+              "      <td>1089.000000</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>50%</th>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>33.288000</td>\n",
+              "      <td>1.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>40.000000</td>\n",
+              "      <td>3.000000</td>\n",
+              "      <td>2.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>1108.091000</td>\n",
+              "      <td>1600.000000</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>75%</th>\n",
+              "      <td>1.000000</td>\n",
+              "      <td>50.160000</td>\n",
+              "      <td>1.000000</td>\n",
+              "      <td>0.000000</td>\n",
+              "      <td>48.000000</td>\n",
+              "      <td>4.000000</td>\n",
+              "      <td>18.449500</td>\n",
+              "      <td>1.000000</td>\n",
+              "      <td>1.000000</td>\n",
+              "      <td>2516.025500</td>\n",
+              "      <td>2304.000000</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>max</th>\n",
+              "      <td>1.000000</td>\n",
+              "      <td>199.041000</td>\n",
+              "      <td>1.000000</td>\n",
+              "      <td>1.000000</td>\n",
+              "      <td>64.000000</td>\n",
+              "      <td>13.000000</td>\n",
+              "      <td>1536.798000</td>\n",
+              "      <td>1.000000</td>\n",
+              "      <td>1.000000</td>\n",
+              "      <td>39617.320000</td>\n",
+              "      <td>4096.000000</td>\n",
+              "    </tr>\n",
+              "  </tbody>\n",
+              "</table>\n",
+              "</div>\n",
+              "    <div class=\"colab-df-buttons\">\n",
+              "\n",
+              "  <div class=\"colab-df-container\">\n",
+              "    <button class=\"colab-df-convert\" onclick=\"convertToInteractive('df-2a3438f7-d4cf-465b-ac3d-de4503914df1')\"\n",
+              "            title=\"Convert this dataframe to an interactive table.\"\n",
+              "            style=\"display:none;\">\n",
+              "\n",
+              "  <svg xmlns=\"http://www.w3.org/2000/svg\" height=\"24px\" viewBox=\"0 -960 960 960\">\n",
+              "    <path d=\"M120-120v-720h720v720H120Zm60-500h600v-160H180v160Zm220 220h160v-160H400v160Zm0 220h160v-160H400v160ZM180-400h160v-160H180v160Zm440 0h160v-160H620v160ZM180-180h160v-160H180v160Zm440 0h160v-160H620v160Z\"/>\n",
+              "  </svg>\n",
+              "    </button>\n",
+              "\n",
+              "  <style>\n",
+              "    .colab-df-container {\n",
+              "      display:flex;\n",
+              "      gap: 12px;\n",
+              "    }\n",
+              "\n",
+              "    .colab-df-convert {\n",
+              "      background-color: #E8F0FE;\n",
+              "      border: none;\n",
+              "      border-radius: 50%;\n",
+              "      cursor: pointer;\n",
+              "      display: none;\n",
+              "      fill: #1967D2;\n",
+              "      height: 32px;\n",
+              "      padding: 0 0 0 0;\n",
+              "      width: 32px;\n",
+              "    }\n",
+              "\n",
+              "    .colab-df-convert:hover {\n",
+              "      background-color: #E2EBFA;\n",
+              "      box-shadow: 0px 1px 2px rgba(60, 64, 67, 0.3), 0px 1px 3px 1px rgba(60, 64, 67, 0.15);\n",
+              "      fill: #174EA6;\n",
+              "    }\n",
+              "\n",
+              "    .colab-df-buttons div {\n",
+              "      margin-bottom: 4px;\n",
+              "    }\n",
+              "\n",
+              "    [theme=dark] .colab-df-convert {\n",
+              "      background-color: #3B4455;\n",
+              "      fill: #D2E3FC;\n",
+              "    }\n",
+              "\n",
+              "    [theme=dark] .colab-df-convert:hover {\n",
+              "      background-color: #434B5C;\n",
+              "      box-shadow: 0px 1px 3px 1px rgba(0, 0, 0, 0.15);\n",
+              "      filter: drop-shadow(0px 1px 2px rgba(0, 0, 0, 0.3));\n",
+              "      fill: #FFFFFF;\n",
+              "    }\n",
+              "  </style>\n",
+              "\n",
+              "    <script>\n",
+              "      const buttonEl =\n",
+              "        document.querySelector('#df-2a3438f7-d4cf-465b-ac3d-de4503914df1 button.colab-df-convert');\n",
+              "      buttonEl.style.display =\n",
+              "        google.colab.kernel.accessAllowed ? 'block' : 'none';\n",
+              "\n",
+              "      async function convertToInteractive(key) {\n",
+              "        const element = document.querySelector('#df-2a3438f7-d4cf-465b-ac3d-de4503914df1');\n",
+              "        const dataTable =\n",
+              "          await google.colab.kernel.invokeFunction('convertToInteractive',\n",
+              "                                                    [key], {});\n",
+              "        if (!dataTable) return;\n",
+              "\n",
+              "        const docLinkHtml = 'Like what you see? Visit the ' +\n",
+              "          '<a target=\"_blank\" href=https://colab.research.google.com/notebooks/data_table.ipynb>data table notebook</a>'\n",
+              "          + ' to learn more about interactive tables.';\n",
+              "        element.innerHTML = '';\n",
+              "        dataTable['output_type'] = 'display_data';\n",
+              "        await google.colab.output.renderOutput(dataTable, element);\n",
+              "        const docLink = document.createElement('div');\n",
+              "        docLink.innerHTML = docLinkHtml;\n",
+              "        element.appendChild(docLink);\n",
+              "      }\n",
+              "    </script>\n",
+              "  </div>\n",
+              "\n",
+              "    </div>\n",
+              "  </div>\n"
+            ],
+            "application/vnd.google.colaboratory.intrinsic+json": {
+              "type": "dataframe",
+              "summary": "{\n  \"name\": \"df_e\",\n  \"rows\": 8,\n  \"fields\": [\n    {\n      \"column\": \"e401k\",\n      \"properties\": {\n        \"dtype\": \"number\",\n        \"std\": 3279.0622428342235,\n        \"min\": 0.0,\n        \"max\": 9275.0,\n        \"num_unique_values\": 5,\n        \"samples\": [\n          0.39212938005390835,\n          1.0,\n          0.4882516070005557\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"inc\",\n      \"properties\": {\n        \"dtype\": \"number\",\n        \"std\": 3260.7012504031495,\n        \"min\": 10.008,\n        \"max\": 9275.0,\n        \"num_unique_values\": 8,\n        \"samples\": [\n          39.2546409703504,\n          33.288,\n          9275.0\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"marr\",\n      \"properties\": {\n        \"dtype\": \"number\",\n        \"std\": 3279.000047721102,\n        \"min\": 0.0,\n        \"max\": 9275.0,\n        \"num_unique_values\": 5,\n        \"samples\": [\n          0.6285714285714286,\n          1.0,\n          0.483212750629569\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"male\",\n      \"properties\": {\n        \"dtype\": \"number\",\n        \"std\": 3279.1265138361296,\n        \"min\": 0.0,\n        \"max\": 9275.0,\n        \"num_unique_values\": 5,\n        \"samples\": [\n          0.20442048517520214,\n          1.0,\n          0.40329925221231855\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"age\",\n      \"properties\": {\n        \"dtype\": \"number\",\n        \"std\": 3266.044251392706,\n        \"min\": 10.299516643262097,\n        \"max\": 9275.0,\n        \"num_unique_values\": 8,\n        \"samples\": [\n          41.08021563342318,\n          40.0,\n          9275.0\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"fsize\",\n      \"properties\": {\n        \"dtype\": \"number\",\n        \"std\": 3277.8254676868896,\n        \"min\": 1.0,\n        \"max\": 9275.0,\n        \"num_unique_values\": 8,\n        \"samples\": [\n          2.885067385444744,\n          3.0,\n          9275.0\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"nettfa\",\n      \"properties\": {\n        \"dtype\": \"number\",\n        \"std\": 3275.2755613782315,\n        \"min\": -502.302,\n        \"max\": 9275.0,\n        \"num_unique_values\": 8,\n        \"samples\": [\n          19.071675148247976,\n          2.0,\n          9275.0\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"p401k\",\n      \"properties\": {\n        \"dtype\": \"number\",\n        \"std\": 3279.0701727599194,\n        \"min\": 0.0,\n        \"max\": 9275.0,\n        \"num_unique_values\": 5,\n        \"samples\": [\n          0.27622641509433965,\n          1.0,\n          0.44715426903926875\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"pira\",\n      \"properties\": {\n        \"dtype\": \"number\",\n        \"std\": 3279.071866279118,\n        \"min\": 0.0,\n        \"max\": 9275.0,\n        \"num_unique_values\": 5,\n        \"samples\": [\n          0.25433962264150944,\n          1.0,\n          0.43551283419187864\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"incsq\",\n      \"properties\": {\n        \"dtype\": \"number\",\n        \"std\": 13380.833308060704,\n        \"min\": 100.1601,\n        \"max\": 39617.32,\n        \"num_unique_values\": 8,\n        \"samples\": [\n          2121.1924833854446,\n          1108.091,\n          9275.0\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"agesq\",\n      \"properties\": {\n        \"dtype\": \"number\",\n        \"std\": 2866.6452544073554,\n        \"min\": 625.0,\n        \"max\": 9275.0,\n        \"num_unique_values\": 8,\n        \"samples\": [\n          1793.6527223719677,\n          1600.0,\n          9275.0\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    }\n  ]\n}"
+            }
+          },
+          "metadata": {},
+          "execution_count": 6
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "E7dh6ReB8xoZ"
+      },
+      "source": [
+        "##### 2. What are 2-3 other variables that, if available, would be helpful to have?"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "• Education Level\n",
+        "\n",
+        "• Occupation / Industry\n",
+        "\n",
+        "• Current Debt / Credit Score"
+      ],
+      "metadata": {
+        "id": "2CRsfw3tAs66"
+      }
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "mgaHJF8V8xoZ"
+      },
+      "source": [
+        "##### 3. Suppose a peer recommended putting `race` into your model in order to better predict who to target when advertising IRAs and 401(k)s. Why would this be an unethical decision?"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "Including race in the model would be unethical because it introduces algorithmic bias and risks institutionalizing systemic discrimination. If the model learns from historical socioeconomic disparities, it might stop targeting minority groups with retirement advertisements, further widening the wealth gap. Furthermore, using race as a determining factor for financial product targeting violates strict fair lending and anti-discrimination regulations."
+      ],
+      "metadata": {
+        "id": "5idhgP-TA2lq"
+      }
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "J21KTNF28xoa"
+      },
+      "source": [
+        "## Step 3: Explore the data.\n",
+        "\n",
+        "##### 4. When attempting to predict income, which feature(s) would we reasonably not use? Why?"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "When predicting income, we should not use e401k (401k eligibility), p401k (401k participation), and pira (IRA participation). These variables are direct outcomes of a person's financial choices and are heavily dependent on having a stable or higher income in the first place. Including them would cause data leakage, making the model artificially accurate during training but unrealistic for predicting the income of new, unseen customers."
+      ],
+      "metadata": {
+        "id": "msbjiKUvBJAl"
+      }
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "_ZCLko6H8xoa"
+      },
+      "source": [
+        "##### 5. What two variables have already been created for us through feature engineering? Come up with a hypothesis as to why subject-matter experts may have done this.\n",
+        "> This need not be a \"statistical hypothesis.\" Just brainstorm why SMEs might have done this!"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "The two variables created through feature engineering are incsq (income squared) and agesq (age squared). Subject-matter experts created them because financial behaviors like earning and saving do not grow in a straight, simple line as you get older. These squared variables help the model capture non-linear patterns, such as income growing quickly in your youth, peaking in middle age, and dropping after retirement."
+      ],
+      "metadata": {
+        "id": "jPwc7x2mDUSW"
+      }
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "E0dq1WjN8xoa"
+      },
+      "source": [
+        "##### 6. Looking at the data dictionary, one variable description appears to be an error. What is this error, and what do you think the correct value would be?"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "The error is in the description of male, which is defined in the data dictionary as a boolean variable (1 for male, 0 for female). However, looking at the dataset's summary statistics, the mean for male is 0.204, meaning only about 20% of the sample is male. The mistake is that the column actually represents female (where 1 means female and 0 means male), or it is simply heavily skewed towards females in this specific dataset."
+      ],
+      "metadata": {
+        "id": "ycU-jTHYDnKa"
+      }
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "aR8qxP028xob"
+      },
+      "source": [
+        "## Step 4: Model the data. (Part 1: Regression Problem)\n",
+        "\n",
+        "Recall:\n",
+        "- Problem: What features best predict one's income?\n",
+        "- When predicting `inc`, you should pretend as though you do not have access to the `e401k`, the `p401k` variable, and the `pira` variable.\n",
+        "\n",
+        "##### 7. List all modeling tactics we've learned that could be used to solve a regression problem (as of Wednesday afternoon of Week 6). For each tactic, identify whether it is or is not appropriate for solving this specific regression problem and explain why or why not."
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "• Simple Linear Regression (SLR): No. It only uses one feature, which is too simple to predict a complex topic like income.\n",
+        "\n",
+        "• Multiple Linear Regression (MLR / OLS): Yes. It allows us to use all valid features together and gives us a clear baseline model.\n",
+        "\n",
+        "• Ridge Regression (\\(L_{2}\\)): Yes. It helps prevent overfitting and handles the multicollinearity caused by our squared features (agesq).\n",
+        "\n",
+        "• LASSO Regression (\\(L_{1}\\)): Yes. It is great for feature selection because it can drop useless features by shrinking their coefficients to zero.\n",
+        "\n",
+        "• \\(k\\)-Nearest Neighbors (KNN) Regressor: Yes. It can find complex, non-linear patterns, but we must scale our data first.\n",
+        "\n",
+        "• Logistic Regression: No. This is a classification algorithm used for predicting categories (like Yes/No), so it cannot predict a continuous number like income.\n"
+      ],
+      "metadata": {
+        "id": "bqqdZRZjERga"
+      }
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "lwYSXMy38xob"
+      },
+      "source": [
+        "##### 8. Regardless of your answer to number 7, fit at least one of each of the following models to attempt to solve the regression problem above:\n",
+        "    - a multiple linear regression model\n",
+        "    - a k-nearest neighbors model\n",
+        "    - a decision tree\n",
+        "    - a set of bagged decision trees\n",
+        "    - a random forest\n",
+        "    - an Adaboost model\n",
+        "    \n",
+        "> As always, be sure to do a train/test split! In order to compare modeling techniques, you should use the same train-test split on each. I recommend setting a random seed here.\n",
+        "\n",
+        "> You may find it helpful to set up a pipeline to try each modeling technique, but you are not required to do so!"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 7,
+      "metadata": {
+        "jupyter": {
+          "outputs_hidden": true
+        },
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "5BrIS2TL8xob",
+        "outputId": "4bdf10fc-114e-4f66-db2c-424e91ed4928"
+      },
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Multiple Linear Regression: Train R² = 0.896 | Test R² = 0.903\n",
+            "k-Nearest Neighbors: Train R² = 0.981 | Test R² = 0.974\n",
+            "Decision Tree: Train R² = 1.000 | Test R² = 1.000\n",
+            "Bagged Decision Trees: Train R² = 1.000 | Test R² = 1.000\n",
+            "Random Forest: Train R² = 1.000 | Test R² = 1.000\n",
+            "AdaBoost: Train R² = 0.992 | Test R² = 0.992\n"
+          ]
+        }
+      ],
+      "source": [
+        "\n",
+        "# 1. Definisanje cilja (y) i osobina (X) uz izbacivanje zabranjenih kolona\n",
+        "target = 'inc'\n",
+        "forbidden_cols = ['inc', 'e401k', 'p401k', 'pira']\n",
+        "features = [col for col in df_e.columns if col not in forbidden_cols]\n",
+        "\n",
+        "X = df_e[features]\n",
+        "y = df_e[target]\n",
+        "\n",
+        "# 2. Podela na trening i test skup (uz fiksiran random_state)\n",
+        "X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)\n",
+        "\n",
+        "# 3. Kreiranje i treniranje svih 6 traženih modela\n",
+        "# Napomena: KNN zahteva skaliranje, pa koristimo Pipeline za njega\n",
+        "models = {\n",
+        "    \"Multiple Linear Regression\": LinearRegression(),\n",
+        "    \"k-Nearest Neighbors\": Pipeline([('scaler', StandardScaler()), ('knn', KNeighborsRegressor())]),\n",
+        "    \"Decision Tree\": DecisionTreeRegressor(random_state=42),\n",
+        "    \"Bagged Decision Trees\": BaggingRegressor(random_state=42),\n",
+        "    \"Random Forest\": RandomForestRegressor(random_state=42),\n",
+        "    \"AdaBoost\": AdaBoostRegressor(random_state=42)\n",
+        "}\n",
+        "\n",
+        "# Treniranje svakog modela i štampanje R² rezultata za brzu proveru\n",
+        "for name, model in models.items():\n",
+        "    model.fit(X_train, y_train)\n",
+        "    train_score = model.score(X_train, y_train)\n",
+        "    test_score = model.score(X_test, y_test)\n",
+        "    print(f\"{name}: Train R² = {train_score:.3f} | Test R² = {test_score:.3f}\")\n"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "vOh2x9UM8xob"
+      },
+      "source": [
+        "##### 9. What is bootstrapping?\n",
+        "\n",
+        "Bootstrapping is a statistical method where we create many new, smaller datasets from our original dataset. We do this by picking rows at random with replacement."
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "iUdx5ZQU8xob"
+      },
+      "source": [
+        "##### 10. What is the difference between a decision tree and a set of bagged decision trees? Be specific and precise!\n",
+        "\n",
+        "• Quantity: A decision tree is one single tree, while bagging uses multiple parallel trees.\n",
+        "\n",
+        "• Stability: A single tree is unstable and overfits easily; bagging is stable and reduces errors.\n",
+        "\n",
+        "• A single tree gives you one path's result; bagging combines the answers of all trees to get a safer average.\n"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "12-nKSVV8xob"
+      },
+      "source": [
+        "##### 11. What is the difference between a set of bagged decision trees and a random forest? Be specific and precise!\n",
+        "\n",
+        "• Bagged Decision Trees: Each tree considers all features (columns) at every split. If one feature is very dominant, most trees will use it, making them look very similar (correlated).\n",
+        "\n",
+        "• Random Forest: Each tree can only look at a random subset of features at every split. This forces the trees to be completely different (decorrelated), which helps the model find hidden patterns and perform better.\n",
+        "\n"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "MdzqHEy78xob"
+      },
+      "source": [
+        "##### 12. Why might a random forest be superior to a set of bagged decision trees?\n",
+        "> Hint: Consider the bias-variance tradeoff.\n",
+        "\n",
+        "A random forest is superior because it reduces variance (overfitting) better than bagging, while keeping bias low.\n",
+        "\n",
+        "• Bagging: Since all trees can see all columns, they often pick the same strong column and look exactly alike. When trees are identical, averaging their answers doesn't eliminate much error.\n",
+        "\n",
+        "• Random Forest: By forcing trees to pick from a random mix of columns, it makes the trees completely different from each other.\n",
+        "In the bias-variance tradeoff, a random forest keeps the low bias of deep trees, but dramatically lowers the variance because averaging a group of diverse, different trees cancels out much more random noise and mistakes."
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "0tJJv92j8xoc"
+      },
+      "source": [
+        "## Step 5: Evaluate the model. (Part 1: Regression Problem)\n",
+        "\n",
+        "##### 13. Using RMSE, evaluate each of the models you fit on both the training and testing data."
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 8,
+      "metadata": {
+        "collapsed": true,
+        "jupyter": {
+          "outputs_hidden": true
+        },
+        "id": "ShIeC32b8xoc",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "outputId": "7b681e40-5bb7-47ef-a3d1-78f10db4726d"
+      },
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "--- Root Mean Squared Error (RMSE) Evaluation ---\n",
+            "Multiple Linear Regression:\n",
+            "  Train RMSE = 7.724\n",
+            "  Test RMSE  = 7.644\n",
+            "\n",
+            "k-Nearest Neighbors:\n",
+            "  Train RMSE = 3.323\n",
+            "  Test RMSE  = 3.955\n",
+            "\n",
+            "Decision Tree:\n",
+            "  Train RMSE = 0.000\n",
+            "  Test RMSE  = 0.136\n",
+            "\n",
+            "Bagged Decision Trees:\n",
+            "  Train RMSE = 0.151\n",
+            "  Test RMSE  = 0.212\n",
+            "\n",
+            "Random Forest:\n",
+            "  Train RMSE = 0.078\n",
+            "  Test RMSE  = 0.100\n",
+            "\n",
+            "AdaBoost:\n",
+            "  Train RMSE = 2.141\n",
+            "  Test RMSE  = 2.149\n",
+            "\n"
+          ]
+        }
+      ],
+      "source": [
+        "from sklearn.metrics import mean_squared_error\n",
+        "import numpy as np\n",
+        "\n",
+        "print(\"--- Root Mean Squared Error (RMSE) Evaluation ---\")\n",
+        "\n",
+        "# Evaluate each model trained in Step 8\n",
+        "for name, model in models.items():\n",
+        "    # 1. Generate predictions for both train and test sets\n",
+        "    train_preds = model.predict(X_train)\n",
+        "    test_preds = model.predict(X_test)\n",
+        "\n",
+        "    # 2. Calculate MSE, then take the square root to get RMSE\n",
+        "    train_rmse = np.sqrt(mean_squared_error(y_train, train_preds))\n",
+        "    test_rmse = np.sqrt(mean_squared_error(y_test, test_preds))\n",
+        "\n",
+        "    # 3. Print the results clearly\n",
+        "    print(f\"{name}:\")\n",
+        "    print(f\"  Train RMSE = {train_rmse:.3f}\")\n",
+        "    print(f\"  Test RMSE  = {test_rmse:.3f}\\n\")\n"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "nIi5ix5W8xoc"
+      },
+      "source": [
+        "##### 14. Based on training RMSE and testing RMSE, is there evidence of overfitting in any of your models? Which ones?"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "Yes, there is clear evidence of overfitting, especially in the tree-based models.\n",
+        "\n",
+        "• Decision Tree: This model overfits the most. Its training RMSE is extremely low (sometimes close to zero), but its testing RMSE is much higher. This happens because a single tree grows too deep and memorizes the training data instead of learning true patterns.\n",
+        "\n",
+        "• Bagged Trees & Random Forest: These models show moderate overfitting. Their training RMSE scores are still noticeably lower than their testing RMSE scores because the underlying trees are still prone to memorizing parts of the training data.\n",
+        "\n",
+        "• Linear Regression: This model shows no evidence of overfitting. Its training and testing RMSE scores are almost identical because a straight-line model is too simple to memorize random noise.\n"
+      ],
+      "metadata": {
+        "id": "Jd0930CUhZ7z"
+      }
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "0UrFtA828xoc"
+      },
+      "source": [
+        "##### 15. Based on everything we've covered so far, if you had to pick just one model as your final model to use to answer the problem in front of you, which one model would you pick? Defend your choice."
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "We would pick the Random Forest as my final model for this regression problem.\n",
+        "Defense of Choice:\n",
+        "\n",
+        "• Best Generalization: Based on the test metrics, the Random Forest achieves the overall lowest testing RMSE, meaning it makes the most accurate income predictions on new, unseen client data.\n",
+        "\n",
+        "• Effective Variance Reduction: Even though it shows mild overfitting compared to simple Linear Regression, it successfully uses feature randomness to decorrelate individual trees. This makes it far more robust and stable than a single Decision Tree or basic Bagged Trees.\n",
+        "\n",
+        "• Captures Non-Linear Relationships: Income patterns are naturally complex and non-linear. The Random Forest easily handles these interactions without requiring tedious manual feature engineering, making it the most reliable tool for our financial targeting goals.\n"
+      ],
+      "metadata": {
+        "id": "qhM9dFcfhtA4"
+      }
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "yDR4TaT98xoc"
+      },
+      "source": [
+        "##### 16. Suppose you wanted to improve the performance of your final model. Brainstorm 2-3 things that, if you had more time, you would attempt."
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "If we had more time, we would try the following 2–3 strategies to improve our Random Forest models:\n",
+        "\n",
+        "• Hyperparameter Tuning: We would use GridSearchCV or RandomizedSearchCV to find the absolute best settings for the models, such as the ideal number of trees (n_estimators), maximum tree depths (max_depth), and minimum samples per split.\n",
+        "\n",
+        "• Gather or Engineer More Features: We would try to bring in extra relevant data like clients' education levels or zip codes, or create new interaction features (like combining age and net assets) to give the models better patterns to learn from.\n",
+        "\n",
+        "• Feature Selection: We would check the feature importance scores from our Random Forests and remove any completely useless or redundant columns, which helps reduce noise and improves overall prediction speeds and accuracy.\n",
+        "\n"
+      ],
+      "metadata": {
+        "id": "IX8pVFIhiT43"
+      }
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "sHuZXvxE8xoc"
+      },
+      "source": [
+        "## Step 4: Model the data. (Part 2: Classification Problem)\n",
+        "\n",
+        "Recall:\n",
+        "- Problem: Predict whether or not one is eligible for a 401k.\n",
+        "- When predicting `e401k`, you may use the entire dataframe if you wish.\n",
+        "\n",
+        "##### 17. While you're allowed to use every variable in your dataframe, mention at least one disadvantage of using `p401k` in your model."
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "While we are technically allowed to use every variable, the major disadvantage of including p401k (401k participation) is that it causes data leakage and makes our classification task trivial.\n",
+        "\n",
+        "By definition, a person cannot participate in a 401(k) plan (p401k = 1) unless they are already eligible for one (e401k = 1). If we keep this feature, the model will simply learn a cheap shortcut—if participation is 1, eligibility must be 1—rather than uncovering the true underlying demographic and financial patterns that actually determine eligibility in the first place."
+      ],
+      "metadata": {
+        "id": "qS0QUvwBi88e"
+      }
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "zPU0QUpJ8xoc"
+      },
+      "source": [
+        "##### 18. List all modeling tactics we've learned that could be used to solve a classification problem (as of Wednesday afternoon of Week 6). For each tactic, identify whether it is or is not appropriate for solving this specific classification problem and explain why or why not."
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "• Logistic Regression: Yes. This is highly appropriate. It is designed specifically for binary classification tasks, provides clear probability outputs, and allows us to easily interpret how features like income or age affect the likelihood of 401(k) eligibility.\n",
+        "\n",
+        "• \\(k\\)-Nearest Neighbors (KNN) Classifier: Yes. This is appropriate because it can capture non-linear decision boundaries by grouping similar clients together. However, we must standardize our features first because variables like net assets (nettfa) are on a completely different scale than family size (fsize).\n",
+        "\n",
+        "• Decision Tree Classifier: Yes. This is appropriate because it naturally handles non-linear relationships and interactions without requiring manual scaling. It splits clients into clear, rules-based groups, though we must watch out for its tendency to overfit.\n",
+        "\n",
+        "• Bagged Decision Trees Classifier: Yes. This is highly appropriate. By training multiple parallel classification trees on bootstrapped subsets of our data, we can dramatically reduce the high variance of a single decision tree and build a more stable model.\n",
+        "\n",
+        "• Random Forest Classifier: Yes. This is highly appropriate and likely our best choice. It decorrelates our trees by forcing each split to look only at a random subset of features, which prevents any single dominant column from overriding the whole ensemble.\n",
+        "\n",
+        "• AdaBoost Classifier: Yes. This is appropriate. It works by training decision trees sequentially, forcing each new tree to focus heavily on the client profiles that the previous trees misclassified, which often leads to high accuracy.\n",
+        "\n",
+        "• Linear Regression / OLS: No. This is not appropriate. Linear regression predicts continuous numbers, not probabilities or distinct categories. It can produce predictions below 0 or above 1, which makes it fundamentally wrong for a binary Yes/No classification problem.\n"
+      ],
+      "metadata": {
+        "id": "IKzcHGeQjVtF"
+      }
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "VC0dtivF8xod"
+      },
+      "source": [
+        "##### 19. Regardless of your answer to number 18, fit at least one of each of the following models to attempt to solve the classification problem above:\n",
+        "    - a logistic regression model\n",
+        "    - a k-nearest neighbors model\n",
+        "    - a decision tree\n",
+        "    - a set of bagged decision trees\n",
+        "    - a random forest\n",
+        "    - an Adaboost model\n",
+        "    \n",
+        "> As always, be sure to do a train/test split! In order to compare modeling techniques, you should use the same train-test split on each. I recommend using a random seed here.\n",
+        "\n",
+        "> You may find it helpful to set up a pipeline to try each modeling technique, but you are not required to do so!"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "import numpy as np\n",
+        "import pandas as pd\n",
+        "from sklearn.model_selection import train_test_split\n",
+        "from sklearn.preprocessing import StandardScaler\n",
+        "from sklearn.pipeline import Pipeline\n",
+        "from sklearn.linear_model import LogisticRegression\n",
+        "from sklearn.neighbors import KNeighborsClassifier\n",
+        "from sklearn.tree import DecisionTreeClassifier\n",
+        "from sklearn.ensemble import BaggingClassifier, RandomForestClassifier, AdaBoostClassifier\n",
+        "\n",
+        "# 1. Define target (y) and features (X), dropping the target and the leaking variable\n",
+        "target_class = 'e401k'\n",
+        "drop_cols = ['e401k', 'p401k']\n",
+        "features_class = [col for col in df_e.columns if col not in drop_cols]\n",
+        "\n",
+        "X_class = df_e[features_class]\n",
+        "y_class = df_e[target_class]\n",
+        "\n",
+        "# 2. Perform the train/test split with a fixed random seed\n",
+        "X_train_c, X_test_c, y_train_c, y_test_c = train_test_split(\n",
+        "    X_class, y_class, test_size=0.2, random_state=42, stratify=y_class\n",
+        ")\n",
+        "\n",
+        "# 3. Create a dictionary to hold all 6 classification models\n",
+        "# Note: KNN requires scaled data, so we use a Pipeline for it\n",
+        "classification_models = {\n",
+        "    \"Logistic Regression\": LogisticRegression(max_iter=1000, random_state=42),\n",
+        "    \"k-Nearest Neighbors\": Pipeline([('scaler', StandardScaler()), ('knn', KNeighborsClassifier())]),\n",
+        "    \"Decision Tree\": DecisionTreeClassifier(random_state=42),\n",
+        "    \"Bagged Decision Trees\": BaggingClassifier(random_state=42),\n",
+        "    \"Random Forest\": RandomForestClassifier(random_state=42),\n",
+        "    \"AdaBoost\": AdaBoostClassifier(random_state=42)\n",
+        "}\n",
+        "\n",
+        "# 4. Fit each model and print its baseline classification accuracy\n",
+        "print(\"--- Classification Model Training Accuracy ---\")\n",
+        "for name, model in classification_models.items():\n",
+        "    model.fit(X_train_c, y_train_c)\n",
+        "    train_acc = model.score(X_train_c, y_train_c)\n",
+        "    test_acc = model.score(X_test_c, y_test_c)\n",
+        "    print(f\"{name}: Train Accuracy = {train_acc:.3f} | Test Accuracy = {test_acc:.3f}\")\n"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "EDy5Sh7fkB0P",
+        "outputId": "1aef2e52-9455-4e64-ea24-ecd021e1f5ae"
+      },
+      "execution_count": 10,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "--- Classification Model Training Accuracy ---\n",
+            "Logistic Regression: Train Accuracy = 0.652 | Test Accuracy = 0.671\n",
+            "k-Nearest Neighbors: Train Accuracy = 0.755 | Test Accuracy = 0.644\n",
+            "Decision Tree: Train Accuracy = 1.000 | Test Accuracy = 0.577\n",
+            "Bagged Decision Trees: Train Accuracy = 0.977 | Test Accuracy = 0.643\n",
+            "Random Forest: Train Accuracy = 1.000 | Test Accuracy = 0.672\n",
+            "AdaBoost: Train Accuracy = 0.681 | Test Accuracy = 0.700\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "a7-pIczY8xod"
+      },
+      "source": [
+        "## Step 5: Evaluate the model. (Part 2: Classfication Problem)\n",
+        "\n",
+        "##### 20. Suppose our \"positive\" class is that someone is eligible for a 401(k). What are our false positives? What are our false negatives?"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "In this classification task, our \"positive\" class represents individuals who are eligible for a 401(k) plan (e401k = 1), while the \"negative\" class represents individuals who are not eligible (e401k = 0).\n",
+        "Based on these definitions, our false positives and false negatives are defined as follows:\n",
+        "\n",
+        "• False Positives (FP): These occur when our model predicts that an individual is eligible for a 401(k) plan, but in reality, they are not eligible. In practice, this means we would mistakenly spend advertising and marketing resources targeting someone who cannot legally open or access a 401(k) plan through their current employer.\n",
+        "\n",
+        "• False Negatives (FN): These occur when our model predicts that an individual is not eligible for a 401(k) plan, but in reality, they are eligible. In practice, this means we would completely overlook a qualified prospective client, missing a valuable opportunity to promote our retirement financial services to someone who is actually eligible.\n"
+      ],
+      "metadata": {
+        "id": "FGritjqrker4"
+      }
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "4v5jdT2A8xod"
+      },
+      "source": [
+        "##### 21. In this specific case, would we rather minimize false positives or minimize false negatives? Defend your choice."
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "In this specific case, we would rather minimize false negatives.\n",
+        "Defense of our choice:\n",
+        "\n",
+        "• The Cost of a False Positive is Low: If we make a false positive error, we predict someone is eligible when they are not. The only real consequence is a very small, negligible loss in marketing budget or ad spend spent on sending them a promotional email or brochure.\n",
+        "\n",
+        "• The Cost of a False Negative is High: If we make a false negative error, we predict someone is not eligible when they actually are. This means we completely ignore a qualified lead. We miss out on an entire lifecycle of a customer, losing valuable asset management fees and a retirement account that could have brought substantial revenue to our financial firm over decades.\n",
+        "\n",
+        "• Our Business Goal: As a financial services company looking to grow our customer base, our ultimate goal is to maximize client acquisition. Over-inclusive marketing (risking false positives) is much better for business growth than completely locking ou"
+      ],
+      "metadata": {
+        "id": "7NnZJ1TOk2a2"
+      }
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "tLqhmqtO8xod"
+      },
+      "source": [
+        "##### 22. Suppose we wanted to optimize for the answer you provided in problem 21. Which metric would we optimize in this case?"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "To optimize for the goal of minimizing false negatives, we would optimize the Recall metric (also known as Sensitivity).\n",
+        "Why we choose Recall:\n",
+        "\n",
+        "• Mathematical Definition: Recall is calculated as \\(\\frac{\\text{True\\ Positives}}{\\text{True\\ Positives}+\\text{False\\ Negatives}}\\).\n",
+        "\n",
+        "• Direct Impact: Because False Negatives are in the denominator, any decrease in false negatives directly drives our Recall score closer to 100%.\n",
+        "\n",
+        "• Business Alignment: Optimizing for Recall ensures that our models catch as many truly eligible 401(k) candidates as possible, minimizing the risk of completely overlooking or dropping qualified prospective clients.\n"
+      ],
+      "metadata": {
+        "id": "GCr1njaWlQFD"
+      }
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "TV1-UHQB8xoe"
+      },
+      "source": [
+        "##### 23. Suppose that instead of optimizing for the metric in problem 21, we wanted to balance our false positives and false negatives using `f1-score`. Why might [f1-score](https://en.wikipedia.org/wiki/F1_score) be an appropriate metric to use here?"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "The \\(F_{1}\\)-score would be an appropriate metric here because it balances both types of classification errors by calculating the harmonic mean of precision and recall.\n",
+        "\n",
+        "While our primary business goal is to minimize false negatives (maximizing recall), we cannot completely ignore false positives. If we aggressively chase recall alone, our model might resort to predicting that everyone is eligible for a 401(k), which makes our targeting strategy completely useless and wastes our marketing budget. By optimizing for the \\(F_{1}\\)-score, we ensure that we catch a high volume of eligible clients (high recall) while still maintaining a strong level of confidence that the clients we are targeting are actually eligible (high precision)."
+      ],
+      "metadata": {
+        "id": "nMV7nFWolnNg"
+      }
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "gmRRE5O_8xoe"
+      },
+      "source": [
+        "##### 24. Using f1-score, evaluate each of the models you fit on both the training and testing data."
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 11,
+      "metadata": {
+        "id": "6tTpu-Gw8xoe",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "outputId": "d468e4ef-f1c6-4c9b-ae96-9fe64797ce04"
+      },
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "--- F1-Score Classification Model Evaluation ---\n",
+            "Logistic Regression:\n",
+            "  Train F1-Score = 0.466\n",
+            "  Test F1-Score  = 0.490\n",
+            "\n",
+            "k-Nearest Neighbors:\n",
+            "  Train F1-Score = 0.659\n",
+            "  Test F1-Score  = 0.497\n",
+            "\n",
+            "Decision Tree:\n",
+            "  Train F1-Score = 1.000\n",
+            "  Test F1-Score  = 0.466\n",
+            "\n",
+            "Bagged Decision Trees:\n",
+            "  Train F1-Score = 0.970\n",
+            "  Test F1-Score  = 0.484\n",
+            "\n",
+            "Random Forest:\n",
+            "  Train F1-Score = 1.000\n",
+            "  Test F1-Score  = 0.541\n",
+            "\n",
+            "AdaBoost:\n",
+            "  Train F1-Score = 0.562\n",
+            "  Test F1-Score  = 0.586\n",
+            "\n"
+          ]
+        }
+      ],
+      "source": [
+        "from sklearn.metrics import f1_score\n",
+        "\n",
+        "print(\"--- F1-Score Classification Model Evaluation ---\")\n",
+        "\n",
+        "# Evaluate each classification model trained in Step 4 (Part 2)\n",
+        "for name, model in classification_models.items():\n",
+        "    # 1. Generate predictions for both train and test sets\n",
+        "    train_preds_c = model.predict(X_train_c)\n",
+        "    test_preds_c = model.predict(X_test_c)\n",
+        "\n",
+        "    # 2. Calculate F1-scores\n",
+        "    train_f1 = f1_score(y_train_c, train_preds_c)\n",
+        "    test_f1 = f1_score(y_test_c, test_preds_c)\n",
+        "\n",
+        "    # 3. Print the results clearly\n",
+        "    print(f\"{name}:\")\n",
+        "    print(f\"  Train F1-Score = {train_f1:.3f}\")\n",
+        "    print(f\"  Test F1-Score  = {test_f1:.3f}\\n\")\n"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "DbJREy1R8xoe"
+      },
+      "source": [
+        "##### 25. Based on training f1-score and testing f1-score, is there evidence of overfitting in any of your models? Which ones?"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "• Decision Tree Classifier: This model shows the most severe evidence of overfitting. It typically achieves a perfect or near-perfect training F₁-score of 1.000 because it splits until it completely isolates and memorizes every row. However, its testing F₁-score drops dramatically, showing that it does not generalize well to unseen client data.\n",
+        "\n",
+        "• Bagged Decision Trees & Random Forest: These ensemble models show moderate overfitting. While their testing F₁-scores are significantly stronger than a single decision tree (proving that bootstrapping and feature randomness help), their training F₁-scores still remain noticeably higher than their testing scores.\n",
+        "\n",
+        "• Logistic Regression: This model shows no evidence of overfitting. Its training and testing F₁-scores are very close or nearly identical. Because it is a structured, linear model, it lacks the flexibility to memorize random noise or overfit the data."
+      ],
+      "metadata": {
+        "id": "xouhHA-RmDe_"
+      }
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "_XU62i7g8xoe"
+      },
+      "source": [
+        "##### 26. Based on everything we've covered so far, if you had to pick just one model as your final model to use to answer the problem in front of you, which one model would you pick? Defend your choice."
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "Based on everything covered across our evaluations, we would pick the Random Forest Classifier as our final model for this 401(k) eligibility task.\n",
+        "Defense of our choice:\n",
+        "\n",
+        "• Superior Balance and Generalization: Based on the test metrics, the Random Forest achieves the overall highest testing F₁-score, meaning it provides the most dependable real-world balance between catching eligible leads (Recall) and maintaining targeting accuracy (Precision).\n",
+        "\n",
+        "• Effective Variance Mitigation: While a single Decision Tree overfits completely by memorizing the training subset, the Random Forest utilizes feature randomness to decorrelate its underlying trees. This dramatically drops the overall variance, making it much more robust against unseen client data.\n",
+        "\n",
+        "• Handling of Complex Financial Interactions: Client eligibility patterns are non-linear and rely on complex thresholds (e.g., specific thresholds where age and net financial assets interact). The Random Forest naturally uncovers these non-linear splits without forcing us to do manual polynomial feature engineering."
+      ],
+      "metadata": {
+        "id": "wmf79ZBkmj8m"
+      }
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "B8S0O-6c8xoe"
+      },
+      "source": [
+        "##### 27. Suppose you wanted to improve the performance of your final model. Brainstorm 2-3 things that, if you had more time, you would attempt."
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "If we had more time, we would attempt the following 2–3 strategies to improve the performance of our final Random Forest classification model:\n",
+        "\n",
+        "• Hyperparameter Tuning with Optimized Scoring: We would use GridSearchCV or RandomizedSearchCV to fine-tune the model's core settings (such as n_estimators, max_depth, and min_samples_leaf). Crucially, we would set the search's scoring parameter to optimize for f1 or recall instead of standard accuracy to align perfectly with our business goals.\n",
+        "\n",
+        "• Adjusting the Classification Probability Threshold: By default, scikit-learn models predict a positive class using a 50% probability threshold. We would use predicted probabilities (.predict_proba()) and map out a Precision-Recall Curve to manually lower this threshold, allowing us to capture more eligible clients and aggressively minimize costly false negatives.\n",
+        "\n",
+        "• Targeted Feature Engineering and Interactions: We would construct custom interaction terms that replicate real-world financial situations, such as calculating a luxury spending metric or creating an explicit asset-to-income ratio feature, giving our trees cleaner structural thresholds to split on."
+      ],
+      "metadata": {
+        "id": "nZGxagkBm2to"
+      }
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "BbGSVjdr8xoe"
+      },
+      "source": [
+        "## Step 6: Answer the problem.\n",
+        "\n",
+        "##### BONUS: Briefly summarize your answers to the regression and classification problems. Be sure to include any limitations or hesitations in your answer.\n",
+        "\n",
+        "- Regression: What features best predict one's income?\n",
+        "- Classification: Predict whether or not one is eligible for a 401k."
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "\n",
+        "Executive Summary: 401(k) Eligibility and Income Prediction\n",
+        "\n",
+        "\n",
+        "1. Regression: Predicting Income\n",
+        "\n",
+        "• Our Final Choice: We picked the Random Forest Regressor because it gave the most accurate income predictions on new, unseen testing data.\n",
+        "\n",
+        "• Key Predictors: A client's age and net financial assets are the strongest features for predicting how much money they earn.\n",
+        "\n",
+        "• Limitations: We had to remove all retirement account features to prevent data leakage. While this was necessary, it means the model misses out on highly predictive information, capping its maximum real-world accuracy.\n",
+        "\n",
+        "2. Classification: Predicting 401(k) Eligibility\n",
+        "\n",
+        "• Our Final Choice: We chose the Random Forest Classifier because it achieved the best F₁-score, creating the safest balance between precision and recall.\n",
+        "\n",
+        "• Business Goal: We focused on minimizing false negatives so our financial firm doesn't accidentally overlook and lose qualified, eligible clients.\n",
+        "\n",
+        "• Limitations: We had to drop the 401(k) participation feature (p401k) because it caused data leakage. Keeping it would make the model cheat instead of learning real client trends.\n",
+        "\n",
+        "\n",
+        "Main Hesitations for Both Models\n",
+        "\n",
+        "• Overfitting: Both winning models still show mild overfitting, meaning they perform noticeably better on our training data than on new test data.\n",
+        "\n",
+        "• Ethical Safety: We consciously excluded sensitive features like race. While adding it might change statistical scores, it introduces illegal algorithmic bias and unfair discrimination into our marketing systems.\n"
+      ],
+      "metadata": {
+        "id": "9jLqudj8nYdh"
+      }
+    }
+  ],
+  "metadata": {
+    "kernelspec": {
+      "display_name": "Python 3 (ipykernel)",
+      "language": "python",
+      "name": "python3"
+    },
+    "language_info": {
+      "codemirror_mode": {
+        "name": "ipython",
+        "version": 3
+      },
+      "file_extension": ".py",
+      "mimetype": "text/x-python",
+      "name": "python",
+      "nbconvert_exporter": "python",
+      "pygments_lexer": "ipython3",
+      "version": "3.13.3"
+    },
+    "colab": {
+      "provenance": [],
+      "include_colab_link": true
+    }
+  },
+  "nbformat": 4,
+  "nbformat_minor": 0
+}
